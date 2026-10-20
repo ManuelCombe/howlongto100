@@ -1,0 +1,11 @@
+# Secrets
+.env
+# Cache SQLite et rapport généré
+cache/
+output/
+# Python
+.venv/
+__pycache__/
+*.pyc
+# Métadonnées Windows (fichiers copiés depuis l'explorateur)
+*:Zone.Identifier

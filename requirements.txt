@@ -1,0 +1,3 @@
+requests>=2.31
+# Source de secours HowLongToBeat (bibliothèque communautaire, pas une API officielle)
+howlongtobeatpy>=1.0.24
