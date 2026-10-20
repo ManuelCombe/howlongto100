@@ -9,3 +9,6 @@ __pycache__/
 *.pyc
 # Métadonnées Windows (fichiers copiés depuis l'explorateur)
 *:Zone.Identifier
+
+# Notes perso pour Claude Code (gardées hors du dépôt)
+CLAUDE.md
