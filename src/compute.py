@@ -92,6 +92,7 @@ def calculer(jeux, steam_succes, sh, hltb):
         ligne = {
             "appid": appid,
             "nom": jeu.get("name") or (d_sh or {}).get("name") or f"App {appid}",
+            "joue_min": jeu.get("playtime_forever") or 0,  # 0 = jamais lancé
             "joue_h": round((jeu.get("playtime_forever") or 0) / 60, 1),
             "debloques": None, "total": None, "pct": None,
             "estimation_h": None, "source": None, "methode": None,

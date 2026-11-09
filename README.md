@@ -49,6 +49,34 @@ Option `--limite N` : ne traiter que les N jeux les plus joués (pratique pour u
 - Ctrl+C à tout moment : tout est enregistré au fil de l'eau dans `cache/cache.sqlite`, la relance reprend où elle s'était arrêtée.
 - Une erreur sur un jeu n'arrête jamais le traitement : elle est listée en fin de sync et le jeu sera réessayé la fois suivante.
 
+## Tags perso : « jamais »
+
+Chaque ligne du rapport a un bouton **jamais** pour écarter un jeu que tu ne joueras pas, sans le désinstaller. Les jeux « jamais » sont masqués par défaut (filtre « Afficher les « jamais » ») et retirés des totaux en tête. Un compteur indique : « X jeux jamais touchés, dont Y écartés, reste Z » (jamais touché = 0 minute de jeu).
+
+La page est statique, elle ne peut pas écrire sur le disque :
+
+1. les tags posés dans la page sont gardés dans le **localStorage** du navigateur ;
+2. **Exporter les tags** télécharge un `tags.json` : place-le à la racine du projet (il est versionné) ;
+3. au `report` suivant, le script relit `tags.json` et l'intègre à la page.
+
+À l'ouverture, si un tag diffère entre le navigateur et `tags.json`, **la modification la plus récente l'emporte**, et un message liste ce qui a été conservé ou remplacé. **Importer les tags** recharge un `tags.json` dans la page, avec la même règle.
+
+Format de `tags.json` (un tag retiré reste présent avec `"actif": false`, sa date sert à la fusion) :
+
+```json
+{
+  "version": 1,
+  "jeux": {
+    "240": {
+      "nom": "Counter-Strike: Source",
+      "tags": { "jamais": { "actif": true, "modifie_le": "2026-11-09T08:00:00.000Z" } }
+    }
+  }
+}
+```
+
+Pour ajouter un tag plus tard (« deck », « court »…), une entrée dans `TAGS` (`src/tags.py`) suffit pour avoir le bouton et le filtre.
+
 ## Calcul du temps restant
 
 ```
@@ -91,6 +119,7 @@ src/
   cache.py              cache SQLite
   compute.py            calcul du temps restant et avertissements
   report.py             génération de la page HTML
+  tags.py               lecture de tags.json (tags perso) et liste des tags connus
   reseau.py             requêtes HTTP : délais, réessais, masquage de la clé
 ```
 

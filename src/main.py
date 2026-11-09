@@ -17,6 +17,7 @@ import compute
 import report
 import reseau
 import steam_api
+import tags as tags_mod
 
 RACINE = Path(__file__).resolve().parent.parent
 
@@ -176,11 +177,16 @@ def generer_rapport(c, limite):
     lignes, resume = compute.calculer(
         jeux, c.lire_tout("steam_succes"), c.lire_tout("steamhunters"), c.lire_tout("hltb")
     )
-    chemin = report.generer(lignes, resume)
+    tags, problemes = tags_mod.lire()
+    for p in problemes:
+        print(f"  ⚠ tags.json : {p}")
+    chemin = report.generer(lignes, resume, tags, tags_mod.TAGS)
     print(f"Rapport : {chemin}")
     print(f"  {resume['a_faire']} à finir (≈ {resume['heures_restantes']} h, hors "
           f"{resume['exclus_du_total']} exclus), {resume['inconnus']} inconnu(s), "
           f"{resume['termines']} terminé(s), {resume['sans_succes']} sans succès")
+    print(f"  tags.json : {tags_mod.compter(tags, 'jamais')} jeu(x) « jamais » "
+          f"(les totaux de la page les excluent ; ceux ci-dessus non)")
 
 
 def main():
