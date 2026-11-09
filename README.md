@@ -12,6 +12,8 @@ Testé sur une bibliothèque de ~1 800 jeux.
 |---|---|---|
 | [API Web Steam](https://steamcommunity.com/dev) | jeux possédés, temps joué, succès débloqués | clé API requise |
 | [SteamHunters](https://steamhunters.com) | temps médian de complétion à 100 %, succès non obtenables, DLC, tags | source préférée, API publique non documentée |
+| [SteamHunters](https://steamhunters.com) | note SteamDB (avis des joueurs Steam) | même requête que ci-dessus, aucune requête en plus |
+| Magasin Steam (`appdetails`) | note Metacritic (presse) | une requête par jeu, sans clé ; absente quand la fiche Steam n'en affiche pas |
 | [HowLongToBeat](https://howlongtobeat.com) | durée « Completionist » | secours uniquement, via [`howlongtobeatpy`](https://pypi.org/project/howlongtobeatpy/) ; temps déclarés, **pas** basés sur les succès Steam ; appariement par nom |
 
 Ces APIs ne renvoient pas d'en-tête CORS : elles ne sont pas lisibles depuis une page web, d'où le script.
@@ -53,7 +55,7 @@ Option `--limite N` : ne traiter que les N jeux les plus joués (pratique pour u
 
 Copie le rapport en `output/site/index.html` et lance `npx wrangler deploy` (Node.js requis, `npx wrangler login` la première fois). Le nom du Worker et le domaine sont dans `wrangler.jsonc` : adapte-les à ton compte. L'adresse `*.workers.dev` est désactivée ; protège le domaine avec Cloudflare Access si tu ne veux pas que ta bibliothèque soit publique.
 
-- La première synchronisation est lente (une requête Steam par jeu, ~20 min pour 1 500 jeux). Les suivantes ne redemandent que ce qui a changé (temps de jeu modifié) ou expiré.
+- La première synchronisation est lente : une requête Steam par jeu pour les succès (~20 min pour 1 500 jeux), puis une pour la note Metacritic (~1 h pour 1 500 jeux, délai prudent pour ne pas être limité par le magasin Steam). Les suivantes ne redemandent que ce qui a changé (temps de jeu modifié) ou expiré.
 - Ctrl+C à tout moment : tout est enregistré au fil de l'eau dans `cache/cache.sqlite`, la relance reprend où elle s'était arrêtée.
 - Une erreur sur un jeu n'arrête jamais le traitement : elle est listée en fin de sync et le jeu sera réessayé la fois suivante.
 

@@ -28,6 +28,7 @@ RACINE = Path(__file__).resolve().parent.parent
 DELAI_STEAM = 0.4
 DELAI_STEAMHUNTERS = 1.0
 DELAI_HLTB = 1.5
+DELAI_STORE = 1.6   # magasin Steam : ~200 requêtes / 5 min (chiffre communautaire, non officiel)
 
 
 def charger_env():
@@ -59,7 +60,7 @@ def jeux_cibles(c, limite):
 # ---------------------------------------------------------------------------
 
 def sync_jeux(c, cle, steam_id):
-    print("1/4  Liste des jeux possédés (Steam)…")
+    print("1/5  Liste des jeux possédés (Steam)…")
     try:
         jeux = steam_api.jeux_possedes(cle, steam_id)
     except steam_api.ProfilPrive as e:
@@ -74,8 +75,16 @@ def sync_jeux(c, cle, steam_id):
 
 
 def sync_steamhunters(c, jeux, erreurs):
-    a_faire = [j["appid"] for j in jeux if not c.est_frais("steamhunters", j["appid"])]
-    print(f"2/4  SteamHunters : {len(a_faire)} jeu(x) à mettre à jour, "
+    en_cache = c.lire_tout("steamhunters")
+
+    def a_rafraichir(appid):
+        d = en_cache.get(appid) or {}
+        # Entrée mise en cache avant l'ajout de la note : on la redemande
+        incomplete = d.get("trouve") and "steamDbRating" not in d
+        return incomplete or not c.est_frais("steamhunters", appid)
+
+    a_faire = [j["appid"] for j in jeux if a_rafraichir(j["appid"])]
+    print(f"2/5  SteamHunters : {len(a_faire)} jeu(x) à mettre à jour, "
           f"{len(jeux) - len(a_faire)} déjà en cache")
     lots = [a_faire[i:i + completion_sources.SH_TAILLE_LOT]
             for i in range(0, len(a_faire), completion_sources.SH_TAILLE_LOT)]
@@ -105,7 +114,7 @@ def sync_succes(c, cle, steam_id, jeux, erreurs):
             continue  # rien n'a bougé depuis la dernière fois
         a_faire.append((appid, joue))
 
-    print(f"3/4  Succès du joueur (Steam) : {len(a_faire)} jeu(x) à interroger")
+    print(f"3/5  Succès du joueur (Steam) : {len(a_faire)} jeu(x) à interroger")
     prives = 0
     for i, (appid, joue) in enumerate(a_faire, 1):
         try:
@@ -142,7 +151,7 @@ def sync_hltb(c, jeux, erreurs):
         if not c.est_frais("hltb", j["appid"]):
             a_faire.append(j)
 
-    print(f"4/4  HowLongToBeat (secours) : {len(a_faire)} jeu(x) à chercher")
+    print(f"4/5  HowLongToBeat (secours) : {len(a_faire)} jeu(x) à chercher")
     for i, j in enumerate(a_faire, 1):
         try:
             c.ecrire("hltb", j["appid"], completion_sources.hltb_par_nom(j.get("name") or ""))
@@ -156,6 +165,27 @@ def sync_hltb(c, jeux, erreurs):
         time.sleep(DELAI_HLTB)
 
 
+def sync_metacritic(c, jeux, erreurs):
+    """Note Metacritic de chaque jeu, via la fiche du magasin Steam (une requête par jeu)."""
+    a_faire = [j for j in jeux if not c.est_frais("metacritic", j["appid"])]
+    print(f"5/5  Metacritic (magasin Steam) : {len(a_faire)} jeu(x) à interroger")
+    echecs_de_suite = 0
+    for i, j in enumerate(a_faire, 1):
+        try:
+            c.ecrire("metacritic", j["appid"], steam_api.metacritic(j["appid"]))
+            echecs_de_suite = 0
+        except reseau.ErreurReseau as e:
+            erreurs.append(f"Metacritic « {j.get('name')} » : {e}")
+            echecs_de_suite += 1
+            if echecs_de_suite >= 5:
+                # Probablement une limite de débit : inutile d'insister, la relance reprendra ici
+                erreurs.append("Metacritic : 5 échecs de suite, étape interrompue (relance sync plus tard)")
+                return
+        if i % 25 == 0 or i == len(a_faire):
+            print(f"     {i}/{len(a_faire)} jeux traités")
+        time.sleep(DELAI_STORE)
+
+
 def sync(c, limite):
     cle, steam_id = charger_env()
     erreurs = []
@@ -166,6 +196,7 @@ def sync(c, limite):
     sync_steamhunters(c, jeux, erreurs)
     sync_succes(c, cle, steam_id, jeux, erreurs)
     sync_hltb(c, jeux, erreurs)
+    sync_metacritic(c, jeux, erreurs)
     print(f"Sync terminé, {len(erreurs)} erreur(s).")
     for e in erreurs[:30]:
         print(f"  - {e}")
@@ -178,7 +209,8 @@ def generer_rapport(c, limite):
     if not jeux:
         sys.exit("Cache vide : lance d'abord « python src/main.py sync ».")
     lignes, resume = compute.calculer(
-        jeux, c.lire_tout("steam_succes"), c.lire_tout("steamhunters"), c.lire_tout("hltb")
+        jeux, c.lire_tout("steam_succes"), c.lire_tout("steamhunters"), c.lire_tout("hltb"),
+        c.lire_tout("metacritic"),
     )
     tags, problemes = tags_mod.lire()
     for p in problemes:

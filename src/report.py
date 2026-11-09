@@ -90,6 +90,8 @@ a:hover { text-decoration: underline; }
 .statut-termine { color: var(--ok); font-weight: 600; }
 .inconnu { color: var(--doux); font-style: italic; }
 .source { color: var(--doux); font-size: .85rem; }
+.note.haute, .note.haute a { color: var(--ok); }
+.note.basse, .note.basse a { color: var(--bloque); }
 details { background: var(--carte); border: 1px solid var(--ligne); border-radius: 10px;
   padding: 10px 14px; margin-top: 16px; }
 summary { cursor: pointer; font-weight: 600; }
@@ -160,6 +162,7 @@ tr.tague-jamais td:not(.tags), li.tague-jamais span { opacity: .5; }
     <label><input type="checkbox" id="f-restants" checked> Succès restants uniquement</label>
     <label><input type="checkbox" id="f-inconnus"> Masquer les « inconnu »</label>
     <label>Temps restant max <input type="number" id="f-max" min="0" step="1" placeholder="∞"> h</label>
+    <label>Note Steam min <input type="number" id="f-note" min="0" max="100" step="5" placeholder="0"> %</label>
   </div>
 
   <div class="tri-mobile">
@@ -186,6 +189,9 @@ tr.tague-jamais td:not(.tags), li.tague-jamais span { opacity: .5; }
     <p>Le total en tête n'inclut que les jeux ayant une estimation et sans avertissement bloquant
     (rouge : 100 % impossible, multijoueur/sans fin, estimation > 1 000 h, données Steam manquantes).
     Les jeux sans estimation sont « inconnu », jamais comptés comme 0 h.</p>
+    <p><b>Notes</b> (information seulement, n'entrent dans aucun calcul) : « Note Steam » = note SteamDB,
+    calculée à partir des avis des joueurs Steam (fournie par SteamHunters) ; « Metacritic » = note de la presse,
+    lue sur la fiche Steam du jeu, absente pour beaucoup de petits jeux.</p>
     <p><b>Tags</b> : un jeu marqué « jamais » est masqué et retiré des totaux en tête.
     Les tags posés ici sont gardés dans ce navigateur. Pour les rendre durables :
     « Exporter les tags », placer le fichier téléchargé à la racine du projet (<code>tags.json</code>),
@@ -492,6 +498,8 @@ tr.tague-jamais td:not(.tags), li.tague-jamais span { opacity: .5; }
     { cle: "pct", titre: "%", num: true },
     { cle: "estimation_h", titre: "Estim. 100 %", num: true },
     { cle: "restant_h", titre: "Restant", num: true },
+    { cle: "note_steam", titre: "Note Steam", num: true },
+    { cle: "metacritic", titre: "Metacritic", num: true },
     { cle: "source", titre: "Source" },
     { cle: "avert", titre: "Avertissements", val: function (l) { return l.avert.length; } },
     { cle: "tags", titre: "Tags", val: function (l) { return nbTags(l.appid); } }
@@ -531,6 +539,15 @@ tr.tague-jamais td:not(.tags), li.tague-jamais span { opacity: .5; }
     var p = this.value.split(":"); tri = { cle: p[0], sens: +p[1] }; afficher();
   });
 
+  // Note sur 100, colorée : ≥ 75 bonne, < 50 mauvaise ; lien optionnel
+  function note(valeur, unite, aide, lien) {
+    if (valeur === null || valeur === undefined) return "";
+    var classe = valeur >= 75 ? "note haute" : valeur < 50 ? "note basse" : "note";
+    var texte = valeur.toLocaleString("fr-FR", { maximumFractionDigits: 1 }) + unite;
+    var contenu = lien ? '<a href="' + echapper(lien) + '" target="_blank" rel="noopener">' + texte + "</a>" : texte;
+    return '<span class="' + classe + '" title="' + echapper(aide) + '">' + contenu + "</span>";
+  }
+
   function cellules(l) {
     var succes = l.total ? l.debloques + " / " + l.total : "";
     var pct = l.pct === null ? "" : l.pct.toLocaleString("fr-FR") + " %" +
@@ -549,6 +566,10 @@ tr.tague-jamais td:not(.tags), li.tague-jamais span { opacity: .5; }
       '<td class="num" data-label="%">' + pct + "</td>",
       '<td class="num" data-label="Estim. 100 %">' + heures(l.estimation_h) + "</td>",
       '<td class="num restant" data-label="Restant">' + restant + "</td>",
+      '<td class="num" data-label="Note Steam">' + note(l.note_steam, " %",
+        "Note SteamDB, calculée à partir des avis des joueurs Steam") + "</td>",
+      '<td class="num" data-label="Metacritic">' + note(l.metacritic, "", "Note Metacritic (presse)",
+        l.metacritic_url) + "</td>",
       '<td data-label="Source">' + source + "</td>",
       "<td" + (badges ? ' data-label="Avert."' : "") + ">" + badges + "</td>",
       '<td class="tags" data-label="Tags">' + boutonsTags(l.appid) + "</td>"
@@ -561,11 +582,13 @@ tr.tague-jamais td:not(.tags), li.tague-jamais span { opacity: .5; }
     var q = $("recherche").value.trim().toLowerCase();
     var restants = $("f-restants").checked, sansInconnus = $("f-inconnus").checked;
     var max = parseFloat($("f-max").value);
+    var noteMin = parseFloat($("f-note").value);
     var caches = 0;   // jeux qui passeraient les filtres mais sont masqués par un tag
     var liste = principales.filter(function (l) {
       if (restants && l.statut === "termine") return false;
       if (sansInconnus && l.statut === "inconnu") return false;
       if (!isNaN(max) && (l.restant_h === null || l.restant_h > max)) return false;
+      if (!isNaN(noteMin) && (l.note_steam === null || l.note_steam < noteMin)) return false;
       if (q && l.nom.toLowerCase().indexOf(q) === -1) return false;
       if (masque(l)) { caches++; return false; }
       return true;
@@ -589,7 +612,7 @@ tr.tague-jamais td:not(.tags), li.tague-jamais span { opacity: .5; }
     majEtatExport();
   }
 
-  ["recherche", "f-max"].forEach(function (id) { $(id).addEventListener("input", afficher); });
+  ["recherche", "f-max", "f-note"].forEach(function (id) { $(id).addEventListener("input", afficher); });
   ["f-restants", "f-inconnus"].forEach(function (id) { $(id).addEventListener("change", afficher); });
 
   // --- Jeux sans succès, listés à part (taggables aussi) ---

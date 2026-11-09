@@ -76,3 +76,30 @@ def succes_joueur(cle, steam_id, appid):
         # entier privé : main.py abandonne si ça touche tous les premiers jeux
         return {"statut": "prive", "prive": True}
     return {"statut": "erreur", "message": reseau.masquer(message)}
+
+
+# ---------------------------------------------------------------------------
+# Fiche magasin : note Metacritic
+# ---------------------------------------------------------------------------
+# API du magasin (store.steampowered.com), sans clé. Vérifié le 2026-11-09 sur 9 jeux :
+#   - GET /api/appdetails?appids=X&filters=metacritic
+#     → {"X": {"success": true, "data": {"metacritic": {"score": 95, "url": "…"}}}}
+#   - jeu sans note Metacritic : "data": [] ; appid absent du magasin : "success": false
+#   - pas d'en-tête CORS ; environ 0,7 s par requête
+# Supposé, non documenté : limite d'environ 200 requêtes / 5 min (chiffre
+# communautaire), d'où le délai de 1,6 s entre requêtes dans main.py.
+STORE_APPDETAILS = "https://store.steampowered.com/api/appdetails"
+
+
+def metacritic(appid):
+    """Note Metacritic d'un jeu : {"score": int|None, "url": str|None, "en_magasin": bool}."""
+    code, donnees = reseau.get_json(STORE_APPDETAILS, {"appids": appid, "filters": "metacritic"})
+    entree = donnees.get(str(appid)) if isinstance(donnees, dict) else None
+    if code != 200 or not isinstance(entree, dict):
+        # 403 possible quand Steam limite les requêtes (non vérifié) : réessayé au prochain sync
+        raise reseau.ErreurReseau(f"appdetails : réponse inattendue (HTTP {code})")
+    if not entree.get("success"):
+        return {"score": None, "url": None, "en_magasin": False}
+    data = entree.get("data") if isinstance(entree.get("data"), dict) else {}
+    mc = data.get("metacritic") or {}
+    return {"score": mc.get("score"), "url": mc.get("url"), "en_magasin": True}

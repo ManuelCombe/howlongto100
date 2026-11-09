@@ -81,8 +81,9 @@ def avertissements_jeu(sh):
     return avert
 
 
-def calculer(jeux, steam_succes, sh, hltb):
+def calculer(jeux, steam_succes, sh, hltb, metacritic=None):
     """Construit une ligne par jeu possédé. Renvoie (lignes, resume)."""
+    metacritic = metacritic or {}
     lignes = []
     for jeu in jeux:
         appid = jeu["appid"]
@@ -98,6 +99,13 @@ def calculer(jeux, steam_succes, sh, hltb):
             "estimation_h": None, "source": None, "methode": None,
             "restant_h": None, "statut": None, "avert": [],
         }
+        # Notes : simple information, n'entrent dans aucun calcul.
+        # SteamDB (avis des joueurs Steam, via SteamHunters) et Metacritic (presse).
+        note = (d_sh or {}).get("steamDbRating")
+        ligne["note_steam"] = round(note, 1) if isinstance(note, (int, float)) else None
+        mc = metacritic.get(appid) or {}
+        ligne["metacritic"] = mc.get("score")
+        ligne["metacritic_url"] = mc.get("url")
         avert = avertissements_jeu(d_sh)
 
         # 1. Succès : Steam en priorité, SteamHunters pour savoir s'il y en a

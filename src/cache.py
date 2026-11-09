@@ -21,6 +21,8 @@ TTL = {
     # Temps de complétion communautaires : longue
     "steamhunters": 30 * JOUR,
     "hltb": 90 * JOUR,
+    # Notes Metacritic : figées une fois le jeu sorti
+    "metacritic": 90 * JOUR,
 }
 
 

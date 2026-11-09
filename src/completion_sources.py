@@ -32,6 +32,9 @@ SH_CHAMPS = [
     "fastestCompletionTime", "medianCompletionTime",
     "playersPerfectedCount", "playersCompletedCount", "playersStartedCount",
     "hasPaidDlc", "isRemoved", "isRestricted", "isFree", "tags",
+    # Note SteamDB (0-100), calculée par SteamDB à partir des avis Steam.
+    # Présente dans la réponse (vérifié le 2026-11-09 : Portal 2 → 96,5).
+    "steamDbRating",
 ]
 
 
