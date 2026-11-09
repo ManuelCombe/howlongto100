@@ -1,12 +1,15 @@
-"""Point d'entrée : python src/main.py {sync,report,all} [--limite N]
+"""Point d'entrée : python src/main.py {sync,report,all,deploy} [--limite N]
 
   sync    récupère les données et remplit le cache (reprend là où il s'était arrêté)
   report  génère output/rapport.html depuis le cache, sans aucune requête réseau
   all     sync puis report
+  deploy  publie output/rapport.html sur Cloudflare (steam.camcc.fyi, voir wrangler.jsonc)
 """
 
 import argparse
 import os
+import shutil
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -189,9 +192,26 @@ def generer_rapport(c, limite):
           f"(les totaux de la page les excluent ; ceux ci-dessus non)")
 
 
+def deployer():
+    """Publie output/rapport.html sur Cloudflare (voir wrangler.jsonc).
+
+    Il faut Node.js et un wrangler connecté au compte (« npx wrangler login »).
+    """
+    source = report.CHEMIN_DEFAUT
+    if not source.exists():
+        sys.exit("Pas de rapport : lance d'abord « python src/main.py report ».")
+    site = RACINE / "output" / "site"
+    site.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source, site / "index.html")
+    print("Déploiement sur Cloudflare (wrangler)…")
+    r = subprocess.run(["npx", "--yes", "wrangler@4", "deploy"], cwd=RACINE)
+    if r.returncode != 0:
+        sys.exit("✗ Échec du déploiement (voir ci-dessus). Pas connecté ? « npx wrangler login ».")
+
+
 def main():
     p = argparse.ArgumentParser(description="Temps restant vers le 100 % des succès Steam")
-    p.add_argument("commande", choices=["sync", "report", "all"])
+    p.add_argument("commande", choices=["sync", "report", "all", "deploy"])
     p.add_argument("--limite", type=int, help="ne traiter que les N jeux les plus joués (test)")
     args = p.parse_args()
     c = cache_mod.Cache()
@@ -200,6 +220,8 @@ def main():
             sync(c, args.limite)
         if args.commande in ("report", "all"):
             generer_rapport(c, args.limite)
+        if args.commande == "deploy":
+            deployer()
     except KeyboardInterrupt:
         sys.exit("\nInterrompu. Tout ce qui a été récupéré est en cache, relance pour reprendre.")
 

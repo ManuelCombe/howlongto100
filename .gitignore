@@ -12,3 +12,5 @@ __pycache__/
 
 # Notes perso pour Claude Code (gardées hors du dépôt)
 CLAUDE.md
+# Fichiers locaux de wrangler (Cloudflare)
+.wrangler/
